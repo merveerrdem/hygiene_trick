@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "237365843444",
+    "firebase_url": "https://hygiene-track-default-rtdb.firebaseio.com",
+    "project_id": "hygiene-track",
+    "storage_bucket": "hygiene-track.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:237365843444:android:d50da68e6059a4674795a1",
+        "android_client_info": {
+          "package_name": "com.example.hygiene_trick"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDM4bH6XIH7rRpo3np6_KgklVUvctoShQg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:237365843444:android:f4e8a28b779665414795a1",
+        "android_client_info": {
+          "package_name": "com.example.ios"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDM4bH6XIH7rRpo3np6_KgklVUvctoShQg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
