@@ -6,17 +6,32 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
+  final Color primaryColor = Colors.blueGrey.shade900;
+  final Color secondaryColor = Colors.blueGrey.shade700;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Tuvalet Kirlilik Durumu',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        primaryColor: primaryColor,
         primarySwatch: Colors.blueGrey,
         scaffoldBackgroundColor: Colors.grey[200],
         appBarTheme: AppBarTheme(
-          backgroundColor: Colors.blueGrey[900],
+          backgroundColor: primaryColor,
           elevation: 4,
+          iconTheme: IconThemeData(color: Colors.white),
+          titleTextStyle: TextStyle(
+              color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        popupMenuTheme: PopupMenuThemeData(
+          color: Colors.blueGrey[50],
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          textStyle:
+              TextStyle(color: primaryColor, fontWeight: FontWeight.w600),
+          elevation: 6,
         ),
       ),
       home: HomeScreen(),
@@ -31,66 +46,98 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final databaseRef = FirebaseDatabase.instance.ref();
-  Map<String, dynamic>? esp32_1Data;
-  Map<String, dynamic>? esp32_2Data;
+
+  Map<String, dynamic>? allData;
+
+  String? notificationMessage;
 
   @override
   void initState() {
     super.initState();
 
-    databaseRef.child('cihazlar/ESP32_1').onValue.listen((event) {
+    databaseRef.child('cihazlar').onValue.listen((event) {
       final dataMap = event.snapshot.value;
       if (dataMap != null && dataMap is Map) {
-        final data = Map<String, dynamic>.from(dataMap);
-        setState(() {
-          esp32_1Data = data;
+        final Map<String, dynamic> combinedData = {};
+        // Firebase realtime database'den gelen tüm alt verileri birleştir
+        dataMap.forEach((key, value) {
+          if (value is Map) {
+            combinedData.addAll(Map<String, dynamic>.from(value));
+          }
         });
-      } else {
-        setState(() {
-          esp32_1Data = null;
-        });
-      }
-    });
 
-    databaseRef.child('cihazlar/ESP32_2').onValue.listen((event) {
-      final dataMap = event.snapshot.value;
-      if (dataMap != null && dataMap is Map) {
-        final data = Map<String, dynamic>.from(dataMap);
         setState(() {
-          esp32_2Data = data;
+          allData = combinedData;
+          _checkNotification(allData);
         });
       } else {
         setState(() {
-          esp32_2Data = null;
+          allData = null;
+          notificationMessage = null;
         });
       }
     });
   }
 
-  Color _getPollutionColor(num value) {
-    if (value < 5) return Colors.green;
-    if (value < 10) return Colors.orange;
-    return Colors.red;
-  }
-
-  // En baştaki iconun rengini belirle (sayac değerine göre)
-  Color _getMainIconColor() {
-    // esp32_1'de sayaç, kirlilik ya da değer içeren ilk uygun numarayı alalım
-    if (esp32_1Data != null) {
-      for (var entry in esp32_1Data!.entries) {
-        var key = entry.key.toLowerCase();
-        var value = entry.value;
-        if (value is num && (key.contains('sayaç') || key.contains('kirlilik') || key.contains('değer'))) {
-          return _getPollutionColor(value);
-        }
-      }
+  // Bildirim kontrolü: kilit süresi 30 sn'yi geçerse
+  void _checkNotification(Map<String, dynamic>? data) {
+    if (data == null) {
+      notificationMessage = null;
+      return;
     }
-    // Eğer bulamazsa varsayılan renk
-    return Colors.grey;
+
+    final kilitSuresiStr = data.entries
+        .firstWhere(
+            (entry) =>
+                entry.key.toLowerCase().contains('kilit') &&
+                (entry.value is int || entry.value is double || entry.value is String),
+            orElse: () => MapEntry('', null))
+        .value;
+
+    if (kilitSuresiStr != null) {
+      // String ya da numara olabilir, önce numaraya çevir
+      int kilitSuresi = 0;
+      if (kilitSuresiStr is String) {
+        kilitSuresi = int.tryParse(kilitSuresiStr) ?? 0;
+      } else if (kilitSuresiStr is int) {
+        kilitSuresi = kilitSuresiStr;
+      } else if (kilitSuresiStr is double) {
+        kilitSuresi = kilitSuresiStr.toInt();
+      }
+
+      if (kilitSuresi > 30) {
+        notificationMessage = "ACİL DURUM! Kilit süresi 30 saniyeyi geçti.";
+      } else {
+        notificationMessage = null;
+      }
+    } else {
+      notificationMessage = null;
+    }
+  }
+
+  Color _colorFromString(String? renk) {
+    switch (renk?.toLowerCase()) {
+      case 'yeşil':
+        return Colors.green;
+      case 'sarı':
+        return Colors.amber;
+      case 'kırmızı':
+        return Colors.red;
+      default:
+        return Colors.blueGrey;
+    }
+  }
+
+  Color _getMainIconColor() {
+    if (allData != null && allData!.containsKey('renk')) {
+      final renk = allData!['renk']?.toString();
+      return _colorFromString(renk);
+    }
+    return Colors.blueGrey;
   }
 
   Widget _buildDataCard(String title, Map<String, dynamic>? data) {
-    if (data == null) {
+    if (data == null || data.isEmpty) {
       return Card(
         margin: EdgeInsets.symmetric(vertical: 16),
         child: Padding(
@@ -98,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Center(
             child: Text(
               "Veri yükleniyor...",
-              style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
+              style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
             ),
           ),
         ),
@@ -116,29 +163,26 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Text(title,
                 style: TextStyle(
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blueGrey[900])),
+                    color: Colors.blueGrey.shade900)),
             SizedBox(height: 16),
             ...data.entries.map((entry) {
               final key = entry.key;
               final value = entry.value;
 
-              bool isCounter = false;
-              num? numericValue;
-              if (value is num) {
-                numericValue = value;
-                if (key.toLowerCase().contains('sayaç') ||
-                    key.toLowerCase().contains('kirlilik') ||
-                    key.toLowerCase().contains('değer')) {
-                  isCounter = true;
-                }
-              }
+              final isCounter = (key.toLowerCase().contains('sayaç') ||
+                  key.toLowerCase().contains('kirlilik') ||
+                  key.toLowerCase().contains('değer'));
 
               Color? iconColor;
               Color? bgColor;
-              if (isCounter && numericValue != null) {
-                iconColor = _getPollutionColor(numericValue);
+              if (isCounter && value is num) {
+                iconColor = _colorFromString(data['renk']?.toString());
+                if (iconColor == Colors.blueGrey) {
+                  // Eğer renk verisi yoksa default sarı (amber) yapabiliriz
+                  iconColor = Colors.amber;
+                }
                 bgColor = iconColor.withOpacity(0.15);
               }
 
@@ -158,11 +202,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Row(
                   children: [
-                    if (isCounter && numericValue != null)
+                    if (isCounter && iconColor != null)
                       Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: iconColor!.withOpacity(0.3),
+                          color: iconColor.withOpacity(0.3),
                           boxShadow: [
                             BoxShadow(
                               color: iconColor.withOpacity(0.5),
@@ -175,14 +219,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Icon(
                           Icons.wc,
                           color: iconColor,
-                          size: 32,
+                          size: 28,
                         ),
                       )
                     else
                       Icon(
                         Icons.wc,
                         color: Colors.grey[400],
-                        size: 32,
+                        size: 28,
                       ),
                     SizedBox(width: 16),
                     Expanded(
@@ -192,15 +236,15 @@ class _HomeScreenState extends State<HomeScreen> {
                           Text(
                             key,
                             style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.blueGrey[800]),
+                                color: Colors.blueGrey.shade800),
                           ),
                           SizedBox(height: 4),
                           Text(
                             value.toString(),
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 18,
                               color: Colors.grey[700],
                               fontWeight: FontWeight.w600,
                             ),
@@ -220,8 +264,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final mainIconColor = _getMainIconColor();
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -233,25 +277,61 @@ class _HomeScreenState extends State<HomeScreen> {
           Center(
             child: Icon(
               Icons.wc,
-              size: 90,
+              size: 80,
               color: mainIconColor,
             ),
           ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              child: Column(
-                children: [
-                  _buildDataCard("ESP32_1 Verileri", esp32_1Data),
-                  _buildDataCard("ESP32_2 Verileri", esp32_2Data),
+          if (notificationMessage != null)
+            Container(
+              width: double.infinity,
+              margin: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade700,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.red.withOpacity(0.6),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  )
                 ],
               ),
+              child: Text(
+                notificationMessage!,
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: _buildDataCard("Cihaz Verileri", allData),
             ),
           ),
         ],
       ),
       floatingActionButton: PopupMenuButton<String>(
-        icon: Icon(Icons.menu, size: 32, color: theme.primaryColor),
+        icon: Container(
+          decoration: BoxDecoration(
+            color: theme.primaryColor,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: theme.primaryColor.withOpacity(0.6),
+                blurRadius: 6,
+                spreadRadius: 1,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          padding: EdgeInsets.all(8),
+          child: Icon(Icons.menu, size: 32, color: Colors.white),
+        ),
+        offset: Offset(-150, 0), // Menü sola açılır
         onSelected: (value) {
           if (value == 'profile') {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -266,11 +346,23 @@ class _HomeScreenState extends State<HomeScreen> {
         itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
           PopupMenuItem<String>(
             value: 'profile',
-            child: Text('Profil'),
+            child: Row(
+              children: [
+                Icon(Icons.person, color: Colors.blueGrey.shade900),
+                SizedBox(width: 10),
+                Text('Profil', style: TextStyle(color: Colors.blueGrey.shade900)),
+              ],
+            ),
           ),
           PopupMenuItem<String>(
             value: 'plan',
-            child: Text('İş Planı'),
+            child: Row(
+              children: [
+                Icon(Icons.event_note, color: Colors.blueGrey.shade900),
+                SizedBox(width: 10),
+                Text('İş Planı', style: TextStyle(color: Colors.blueGrey.shade900)),
+              ],
+            ),
           ),
         ],
       ),

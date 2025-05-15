@@ -53,7 +53,7 @@ class LoginSelectionScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  "Giriş Ekranı",
+                  "Hygiene Track",
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
