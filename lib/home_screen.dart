@@ -1,43 +1,112 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'profil_sayfasi.dart'; // Profil sayfasını import ettik
+import 'theme.dart'; // AppTheme sınıfını ayrı dosyada tuttuysan bunu ekle
 
 void main() {
   runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final Color primaryColor = Colors.blueGrey.shade900;
-  final Color secondaryColor = Colors.blueGrey.shade700;
-
+  // Tema renkleri AppTheme'den geliyor
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Tuvalet Kirlilik Durumu',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primaryColor: primaryColor,
-        primarySwatch: Colors.blueGrey,
-        scaffoldBackgroundColor: Colors.grey[200],
+        primaryColor: AppTheme.primaryColor,
+        colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.green)
+            .copyWith(
+              primary: AppTheme.primaryColor,
+              secondary: AppTheme.primaryDark,
+            ),
+        scaffoldBackgroundColor: AppTheme.backgroundGradient.last,
         appBarTheme: AppBarTheme(
-          backgroundColor: primaryColor,
-          elevation: 4,
-          iconTheme: IconThemeData(color: Colors.white),
-          titleTextStyle: TextStyle(
-              color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.white),
+          titleTextStyle: const TextStyle(
+              color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        popupMenuTheme: PopupMenuThemeData(
-          color: Colors.blueGrey[50],
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          textStyle:
-              TextStyle(color: primaryColor, fontWeight: FontWeight.w600),
-          elevation: 6,
+        floatingActionButtonTheme: FloatingActionButtonThemeData(
+          backgroundColor: AppTheme.primaryColor,
+        ),
+        bottomSheetTheme: BottomSheetThemeData(
+          backgroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
         ),
       ),
       home: HomeScreen(),
     );
   }
 }
+
+// ---------------- BubbleBackground Widget ----------------
+
+class BubbleBackground extends StatelessWidget {
+  final Widget child;
+  const BubbleBackground({required this.child, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: AppTheme.backgroundGradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -50,
+            left: -50,
+            child: _Bubble(80),
+          ),
+          Positioned(
+            top: 50,
+            right: -40,
+            child: _Bubble(100),
+          ),
+          Positioned(
+            bottom: -50,
+            right: -50,
+            child: _Bubble(80),
+          ),
+          Positioned(
+            bottom: 100,
+            left: -30,
+            child: _Bubble(120),
+          ),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _Bubble extends StatelessWidget {
+  final double size;
+  const _Bubble(this.size);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.07),
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+// ------------------ HomeScreen ------------------
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -46,9 +115,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final databaseRef = FirebaseDatabase.instance.ref();
-
   Map<String, dynamic>? allData;
-
   String? notificationMessage;
 
   @override
@@ -59,7 +126,6 @@ class _HomeScreenState extends State<HomeScreen> {
       final dataMap = event.snapshot.value;
       if (dataMap != null && dataMap is Map) {
         final Map<String, dynamic> combinedData = {};
-        // Firebase realtime database'den gelen tüm alt verileri birleştir
         dataMap.forEach((key, value) {
           if (value is Map) {
             combinedData.addAll(Map<String, dynamic>.from(value));
@@ -79,7 +145,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // Bildirim kontrolü: kilit süresi 30 sn'yi geçerse
   void _checkNotification(Map<String, dynamic>? data) {
     if (data == null) {
       notificationMessage = null;
@@ -90,12 +155,13 @@ class _HomeScreenState extends State<HomeScreen> {
         .firstWhere(
             (entry) =>
                 entry.key.toLowerCase().contains('kilit') &&
-                (entry.value is int || entry.value is double || entry.value is String),
+                (entry.value is int ||
+                    entry.value is double ||
+                    entry.value is String),
             orElse: () => MapEntry('', null))
         .value;
 
     if (kilitSuresiStr != null) {
-      // String ya da numara olabilir, önce numaraya çevir
       int kilitSuresi = 0;
       if (kilitSuresiStr is String) {
         kilitSuresi = int.tryParse(kilitSuresiStr) ?? 0;
@@ -139,13 +205,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildDataCard(String title, Map<String, dynamic>? data) {
     if (data == null || data.isEmpty) {
       return Card(
-        margin: EdgeInsets.symmetric(vertical: 16),
-        child: Padding(
-          padding: const EdgeInsets.all(30.0),
+        margin: const EdgeInsets.symmetric(vertical: 16),
+        child: const Padding(
+          padding: EdgeInsets.all(30.0),
           child: Center(
             child: Text(
               "Veri yükleniyor...",
-              style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
+              style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
             ),
           ),
         ),
@@ -153,20 +219,20 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Card(
-      margin: EdgeInsets.symmetric(vertical: 16),
+      margin: const EdgeInsets.symmetric(vertical: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 8,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title,
                 style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.blueGrey.shade900)),
-            SizedBox(height: 16),
+            const SizedBox(height: 12),
             ...data.entries.map((entry) {
               final key = entry.key;
               final value = entry.value;
@@ -180,19 +246,19 @@ class _HomeScreenState extends State<HomeScreen> {
               if (isCounter && value is num) {
                 iconColor = _colorFromString(data['renk']?.toString());
                 if (iconColor == Colors.blueGrey) {
-                  // Eğer renk verisi yoksa default sarı (amber) yapabiliriz
                   iconColor = Colors.amber;
                 }
                 bgColor = iconColor.withOpacity(0.15);
               }
 
               return Container(
-                margin: EdgeInsets.symmetric(vertical: 10),
-                padding: EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
                 decoration: BoxDecoration(
                   color: bgColor ?? Colors.grey[100],
                   borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
                       color: Colors.black12,
                       blurRadius: 5,
@@ -215,20 +281,20 @@ class _HomeScreenState extends State<HomeScreen> {
                             )
                           ],
                         ),
-                        padding: EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(10),
                         child: Icon(
                           Icons.wc,
                           color: iconColor,
-                          size: 28,
+                          size: 24,
                         ),
                       )
                     else
                       Icon(
                         Icons.wc,
                         color: Colors.grey[400],
-                        size: 28,
+                        size: 24,
                       ),
-                    SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,15 +302,15 @@ class _HomeScreenState extends State<HomeScreen> {
                           Text(
                             key,
                             style: TextStyle(
-                                fontSize: 20,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blueGrey.shade800),
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             value.toString(),
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 14,
                               color: Colors.grey[700],
                               fontWeight: FontWeight.w600,
                             ),
@@ -262,109 +328,149 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final mainIconColor = _getMainIconColor();
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Tuvalet Kirlilik Durumu"),
+  void _showBottomMenu() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      body: Column(
-        children: [
-          SizedBox(height: 20),
-          Center(
-            child: Icon(
-              Icons.wc,
-              size: 80,
-              color: mainIconColor,
-            ),
-          ),
-          if (notificationMessage != null)
-            Container(
-              width: double.infinity,
-              margin: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.red.shade700,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.red.withOpacity(0.6),
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  )
-                ],
+      backgroundColor: const Color(0xFFD6F5E1), // Açık yeşil pastel ton
+      builder: (BuildContext context) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 5,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade300,
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-              child: Text(
-                notificationMessage!,
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18),
-                textAlign: TextAlign.center,
+              ListTile(
+                leading: Icon(Icons.person, color: Colors.green.shade700),
+                title: Text('Profil',
+                    style: TextStyle(
+                        color: Colors.green.shade900,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 18)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => ProfilSayfasi()),
+                  );
+                },
               ),
-            ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: _buildDataCard("Cihaz Verileri", allData),
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: PopupMenuButton<String>(
-        icon: Container(
-          decoration: BoxDecoration(
-            color: theme.primaryColor,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: theme.primaryColor.withOpacity(0.6),
-                blurRadius: 6,
-                spreadRadius: 1,
-                offset: Offset(0, 3),
+              ListTile(
+                leading: Icon(Icons.event_note, color: Colors.green.shade700),
+                title: Text('İş Planı',
+                    style: TextStyle(
+                        color: Colors.green.shade900,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 18)),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('İş Planı seçildi!')),
+                  );
+                },
               ),
             ],
           ),
-          padding: EdgeInsets.all(8),
-          child: Icon(Icons.menu, size: 32, color: Colors.white),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mainIconColor = _getMainIconColor();
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      // Üstte şeffaf geri butonu
+      body: BubbleBackground(
+        child: Stack(
+          children: [
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 0,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 25),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 40),
+                      Text(
+                        "Tuvalet Kirlilik Durumu",
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white.withOpacity(0.95)),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          // Koyu yeşil arka plan kaldırıldı
+                        ),
+                        child: Icon(
+                          Icons.wc_rounded,
+                          size: 160,
+                          color: mainIconColor,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      if (notificationMessage != null)
+                        Container(
+                          margin: const EdgeInsets.symmetric(vertical: 10),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.85),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            notificationMessage!,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      _buildDataCard("Tüm Cihaz Verileri", allData),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 25,
+              bottom: 25,
+              child: FloatingActionButton(
+                onPressed: _showBottomMenu,
+                backgroundColor: AppTheme.primaryDark,
+                child: const Icon(Icons.menu, size: 26),
+              ),
+            ),
+          ],
         ),
-        offset: Offset(-150, 0), // Menü sola açılır
-        onSelected: (value) {
-          if (value == 'profile') {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Profil seçildi!')),
-            );
-          } else if (value == 'plan') {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('İş Planı seçildi!')),
-            );
-          }
-        },
-        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-          PopupMenuItem<String>(
-            value: 'profile',
-            child: Row(
-              children: [
-                Icon(Icons.person, color: Colors.blueGrey.shade900),
-                SizedBox(width: 10),
-                Text('Profil', style: TextStyle(color: Colors.blueGrey.shade900)),
-              ],
-            ),
-          ),
-          PopupMenuItem<String>(
-            value: 'plan',
-            child: Row(
-              children: [
-                Icon(Icons.event_note, color: Colors.blueGrey.shade900),
-                SizedBox(width: 10),
-                Text('İş Planı', style: TextStyle(color: Colors.blueGrey.shade900)),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
