@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'profil_sayfasi.dart'; // Profil sayfasını import ettik
 import 'theme.dart'; // AppTheme sınıfını ayrı dosyada tuttuysan bunu ekle
+import 'dart:ui';
+import 'personnel_schedule_view.dart';
 
 void main() {
   runApp(MyApp());
@@ -114,7 +116,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final databaseRef = FirebaseDatabase.instance.ref();
+  final DatabaseReference _database = FirebaseDatabase.instance.ref().child('cihazlar');
   Map<String, dynamic>? allData;
   String? notificationMessage;
 
@@ -122,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
 
-    databaseRef.child('cihazlar').onValue.listen((event) {
+    _database.onValue.listen((event) {
       final dataMap = event.snapshot.value;
       if (dataMap != null && dataMap is Map) {
         final Map<String, dynamic> combinedData = {};
@@ -200,6 +202,135 @@ class _HomeScreenState extends State<HomeScreen> {
       return _colorFromString(renk);
     }
     return Colors.blueGrey;
+  }
+
+  void _handleMenuSelection(String value, BuildContext context) {
+    switch (value) {
+      case 'profile':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ProfilSayfasi()),
+        );
+        break;
+      case 'schedule':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => PersonnelScheduleView()),
+        );
+        break;
+      case 'logout':
+        Navigator.pushReplacementNamed(context, '/');
+        break;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mainIconColor = _getMainIconColor();
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: BubbleBackground(
+        child: Stack(
+          children: [
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 25),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 40),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Tuvalet Kirlilik Durumu",
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white.withOpacity(0.95),
+                            ),
+                          ),
+                          PopupMenuButton<String>(
+                            icon: Icon(Icons.more_vert, color: Colors.white),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            itemBuilder: (BuildContext context) => [
+                              PopupMenuItem<String>(
+                                value: 'profile',
+                                child: ListTile(
+                                  leading: Icon(Icons.person, color: AppTheme.primaryColor),
+                                  title: const Text('Profil'),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'schedule',
+                                child: ListTile(
+                                  leading: Icon(Icons.schedule, color: AppTheme.primaryColor),
+                                  title: const Text('İş Planı'),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                              const PopupMenuDivider(),
+                              PopupMenuItem<String>(
+                                value: 'logout',
+                                child: ListTile(
+                                  leading: const Icon(Icons.logout, color: Colors.red),
+                                  title: const Text('Çıkış Yap', 
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ],
+                            onSelected: (value) => _handleMenuSelection(value, context),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          // Koyu yeşil arka plan kaldırıldı
+                        ),
+                        child: Icon(
+                          Icons.wc_rounded,
+                          size: 160,
+                          color: mainIconColor,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      if (notificationMessage != null)
+                        Container(
+                          margin: const EdgeInsets.symmetric(vertical: 10),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.85),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            notificationMessage!,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      _buildDataCard("Tüm Cihaz Verileri", allData),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildDataCard(String title, Map<String, dynamic>? data) {
@@ -322,153 +453,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             }).toList(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showBottomMenu() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      backgroundColor: const Color(0xFFD6F5E1), // Açık yeşil pastel ton
-      builder: (BuildContext context) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 5,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade300,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              ListTile(
-                leading: Icon(Icons.person, color: Colors.green.shade700),
-                title: Text('Profil',
-                    style: TextStyle(
-                        color: Colors.green.shade900,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 18)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => ProfilSayfasi()),
-                  );
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.event_note, color: Colors.green.shade700),
-                title: Text('İş Planı',
-                    style: TextStyle(
-                        color: Colors.green.shade900,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 18)),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('İş Planı seçildi!')),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final mainIconColor = _getMainIconColor();
-
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      // Üstte şeffaf geri butonu
-      body: BubbleBackground(
-        child: Stack(
-          children: [
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              left: 0,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 25),
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 40),
-                      Text(
-                        "Tuvalet Kirlilik Durumu",
-                        style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white.withOpacity(0.95)),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          // Koyu yeşil arka plan kaldırıldı
-                        ),
-                        child: Icon(
-                          Icons.wc_rounded,
-                          size: 160,
-                          color: mainIconColor,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      if (notificationMessage != null)
-                        Container(
-                          margin: const EdgeInsets.symmetric(vertical: 10),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent.withOpacity(0.85),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Text(
-                            notificationMessage!,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      _buildDataCard("Tüm Cihaz Verileri", allData),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              right: 25,
-              bottom: 25,
-              child: FloatingActionButton(
-                onPressed: _showBottomMenu,
-                backgroundColor: AppTheme.primaryDark,
-                child: const Icon(Icons.menu, size: 26),
-              ),
-            ),
           ],
         ),
       ),

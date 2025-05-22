@@ -14,6 +14,11 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   bool isLoading = false;
 
   Future<void> signIn() async {
+    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+      _showMessage('Lütfen email ve şifre alanlarını doldurun.');
+      return;
+    }
+
     setState(() => isLoading = true);
     try {
       // Firebase Authentication ile giriş
@@ -36,16 +41,31 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         final role = querySnapshot.docs.first.get('role');
         if (role == 'admin') {
           Navigator.pushReplacementNamed(context, '/admin_home_screen');
+          return;
         } else {
           await FirebaseAuth.instance.signOut();
-          _showMessage('Bu kullanıcı admin değil.');
+          _showMessage('Bu kullanıcı admin yetkisine sahip değil.');
         }
       } else {
         await FirebaseAuth.instance.signOut();
-        _showMessage('Bu hesap admin olarak kayıtlı değil.');
+        _showMessage('Bu hesap admin olarak kayıtlı değil. Lütfen yönetici ile iletişime geçin.');
       }
     } on FirebaseAuthException catch (e) {
-      _showMessage('Giriş başarısız: ${e.message}');
+      String message = 'Giriş başarısız: ';
+      switch (e.code) {
+        case 'user-not-found':
+          message += 'Bu email adresi ile kayıtlı kullanıcı bulunamadı.';
+          break;
+        case 'wrong-password':
+          message += 'Hatalı şifre girdiniz.';
+          break;
+        case 'invalid-email':
+          message += 'Geçersiz email formatı.';
+          break;
+        default:
+          message += e.message ?? 'Bilinmeyen bir hata oluştu.';
+      }
+      _showMessage(message);
     } catch (e) {
       _showMessage('Hata: $e');
     } finally {

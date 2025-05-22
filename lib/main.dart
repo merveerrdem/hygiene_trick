@@ -5,6 +5,9 @@ import 'dart:math';
 import 'personnel_login.dart';
 import 'admin_login.dart';
 import 'home_screen.dart';
+import 'admin_home_screen.dart';
+import 'work_schedule_screen.dart';
+import 'admin_profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +29,9 @@ class MyApp extends StatelessWidget {
         '/personnel_login': (context) => PersonnelLoginScreen(),
         '/admin_login': (context) => AdminLoginScreen(),
         '/home': (context) => HomeScreen(),
+        '/admin_home_screen': (context) => AdminHomeScreen(),
+        '/work_schedule': (context) => WorkScheduleScreen(),
+        '/admin_profile': (context) => AdminProfileScreen(),
       },
     );
   }
