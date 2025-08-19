@@ -79,6 +79,30 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     }
   }
 
+  int _asInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    if (v is double) return v.round();
+    if (v is num) return v.toInt();
+    if (v is String) {
+      final parsed = num.tryParse(v.trim());
+      return parsed?.toInt() ?? 0;
+    }
+    return 0;
+  }
+
+  bool _asBool(dynamic v) {
+    if (v == null) return false;
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    if (v is String) {
+      final s = v.trim().toLowerCase();
+      if (s == 'true' || s == '1' || s == 'yes' || s == 'aktif') return true;
+      if (s == 'false' || s == '0' || s == 'no' || s == 'pasif') return false;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -189,12 +213,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     Map<dynamic, dynamic> device = devices[deviceKey] as Map<dynamic, dynamic>;
                     
                     String renk = device['renk']?.toString() ?? 'yeşil';
-                    int sayac = device['sayac'] ?? 0;
-                    bool sifirla = device['sifirla'] ?? false;
-                    int sicaklik = device['sicaklik'] ?? 0;
-                    int nem = device['nem'] ?? 0;
-                    int gazDegeri = device['gaz_degeri'] ?? 0;
-                    int amonyakDegeri = device['amonyak_degeri'] ?? 0;
+                    int sayac = _asInt(device['sayac']);
+                    bool sifirla = _asBool(device['sifirla']);
+                    int sicaklik = _asInt(device['sicaklik']);
+                    int nem = _asInt(device['nem']);
+                    int gazDegeri = _asInt(device['gaz_degeri']);
+                    int amonyakDegeri = _asInt(device['amonyak_degeri']);
 
                     Color statusColor = getColorFromStatus(renk);
                     IconData statusIcon = getIconFromStatus(renk);

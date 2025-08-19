@@ -36,14 +36,14 @@ class _PersonnelLoginScreenState extends State<PersonnelLoginScreen> {
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
-        final userDoc = querySnapshot.docs.first;
-        final role = userDoc.get('role');
+        final Map<String, dynamic> userData = querySnapshot.docs.first.data();
+        final String? role = _getStringField(userData, 'role');
 
         if (role == 'user' || role == 'admin') {
           Navigator.pushReplacementNamed(context, '/home');
         } else {
           await FirebaseAuth.instance.signOut();
-          _showMessage('Bu kullanıcı yetkili değil.');
+          _showMessage('Bu kullanıcı yetkili değil veya role alanı eksik.');
         }
       } else {
         await FirebaseAuth.instance.signOut();
@@ -60,8 +60,8 @@ class _PersonnelLoginScreenState extends State<PersonnelLoginScreen> {
 
           if (userQuery.docs.isNotEmpty) {
             final data = userQuery.docs.first.data();
-            final String? storedPassword = data['password'] as String?;
-            final String? role = data['role'] as String?;
+            final String? storedPassword = _getStringField(data, 'password');
+            final String? role = _getStringField(data, 'role');
 
             if (storedPassword == inputPassword && (role == 'user' || role == 'admin')) {
               await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -72,7 +72,7 @@ class _PersonnelLoginScreenState extends State<PersonnelLoginScreen> {
               return;
             }
           }
-          _showMessage('Giriş başarısız: Bu email için kullanıcı kaydı bulunamadı veya şifre eşleşmiyor.');
+          _showMessage('Giriş başarısız: Bu email için kullanıcı kaydı bulunamadı veya şifre/role eşleşmiyor.');
         } catch (ie) {
           _showMessage('Hata: $ie');
         }
@@ -88,6 +88,18 @@ class _PersonnelLoginScreenState extends State<PersonnelLoginScreen> {
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  String? _getStringField(Map<String, dynamic> data, String expectedKey) {
+    for (final key in data.keys) {
+      final String normalized = key.toString().trim().toLowerCase();
+      if (normalized == expectedKey.toLowerCase()) {
+        final value = data[key];
+        if (value is String) return value;
+        return value?.toString();
+      }
+    }
+    return null;
   }
 
   void _showMessage(String msg) {

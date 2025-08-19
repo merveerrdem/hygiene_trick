@@ -40,13 +40,14 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
-        final role = querySnapshot.docs.first.get('role');
+        final Map<String, dynamic> adminData = querySnapshot.docs.first.data();
+        final String? role = _getStringField(adminData, 'role');
         if (role == 'admin') {
           Navigator.pushReplacementNamed(context, '/admin_home_screen');
           return;
         } else {
           await FirebaseAuth.instance.signOut();
-          _showMessage('Bu kullanıcı admin yetkisine sahip değil.');
+          _showMessage('Bu kullanıcı admin yetkisine sahip değil veya role alanı eksik.');
         }
       } else {
         await FirebaseAuth.instance.signOut();
@@ -64,8 +65,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 
           if (adminQuery.docs.isNotEmpty) {
             final data = adminQuery.docs.first.data();
-            final String? storedPassword = data['password'] as String?;
-            final String? role = data['role'] as String?;
+            final String? storedPassword = _getStringField(data, 'password');
+            final String? role = _getStringField(data, 'role');
 
             if (storedPassword == inputPassword && role == 'admin') {
               // Auth'ta kullanıcı oluştur ve giriş yap
@@ -77,7 +78,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               return;
             }
           }
-          _showMessage('Giriş başarısız: Bu email için admin kaydı bulunamadı veya şifre eşleşmiyor.');
+          _showMessage('Giriş başarısız: Bu email için admin kaydı bulunamadı veya şifre/role eşleşmiyor.');
         } catch (ie) {
           _showMessage('Hata: $ie');
         }
@@ -93,6 +94,19 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  // Firestore'da alan adı "role ", " Role", "ROLE" gibi hatalı/boşluklu olabilir
+  String? _getStringField(Map<String, dynamic> data, String expectedKey) {
+    for (final key in data.keys) {
+      final String normalized = key.toString().trim().toLowerCase();
+      if (normalized == expectedKey.toLowerCase()) {
+        final value = data[key];
+        if (value is String) return value;
+        return value?.toString();
+      }
+    }
+    return null;
   }
 
   void _showMessage(String msg) {
