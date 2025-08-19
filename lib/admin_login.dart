@@ -20,11 +20,13 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     }
 
     setState(() => isLoading = true);
+    final String inputEmail = emailController.text.trim();
+    final String inputPassword = passwordController.text.trim();
     try {
       // Firebase Authentication ile giriş
       UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+        email: inputEmail,
+        password: inputPassword,
       );
 
       final email = userCredential.user?.email;
@@ -51,25 +53,45 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         _showMessage('Bu hesap admin olarak kayıtlı değil. Lütfen yönetici ile iletişime geçin.');
       }
     } on FirebaseAuthException catch (e) {
-      String message = 'Giriş başarısız: ';
-      switch (e.code) {
-        case 'user-not-found':
-          message += 'Bu email adresi ile kayıtlı kullanıcı bulunamadı.';
-          break;
-        case 'wrong-password':
-          message += 'Hatalı şifre girdiniz.';
-          break;
-        case 'invalid-email':
-          message += 'Geçersiz email formatı.';
-          break;
-        default:
-          message += e.message ?? 'Bilinmeyen bir hata oluştu.';
+      // Kullanıcı Auth'ta yoksa, Firestore'daki kayıtla otomatik oluşturmayı dene
+      if (e.code == 'user-not-found') {
+        try {
+          final adminQuery = await FirebaseFirestore.instance
+              .collection('Admin')
+              .where('email', isEqualTo: inputEmail)
+              .limit(1)
+              .get();
+
+          if (adminQuery.docs.isNotEmpty) {
+            final data = adminQuery.docs.first.data();
+            final String? storedPassword = data['password'] as String?;
+            final String? role = data['role'] as String?;
+
+            if (storedPassword == inputPassword && role == 'admin') {
+              // Auth'ta kullanıcı oluştur ve giriş yap
+              await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                email: inputEmail,
+                password: inputPassword,
+              );
+              Navigator.pushReplacementNamed(context, '/admin_home_screen');
+              return;
+            }
+          }
+          _showMessage('Giriş başarısız: Bu email için admin kaydı bulunamadı veya şifre eşleşmiyor.');
+        } catch (ie) {
+          _showMessage('Hata: $ie');
+        }
+      } else if (e.code == 'wrong-password') {
+        _showMessage('Hatalı şifre girdiniz.');
+      } else if (e.code == 'invalid-email') {
+        _showMessage('Geçersiz email formatı.');
+      } else {
+        _showMessage('Giriş başarısız: ${e.message ?? 'Bilinmeyen bir hata oluştu.'}');
       }
-      _showMessage(message);
     } catch (e) {
       _showMessage('Hata: $e');
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 

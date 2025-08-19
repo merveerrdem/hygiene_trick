@@ -17,10 +17,13 @@ class _PersonnelLoginScreenState extends State<PersonnelLoginScreen> {
   Future<void> signIn() async {
     setState(() => isLoading = true);
 
+    final String inputEmail = emailController.text.trim();
+    final String inputPassword = passwordController.text.trim();
+
     try {
       UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+        email: inputEmail,
+        password: inputPassword,
       );
 
       final email = userCredential.user?.email;
@@ -47,11 +50,43 @@ class _PersonnelLoginScreenState extends State<PersonnelLoginScreen> {
         _showMessage('Bu hesap personel olarak kayıtlı değil.');
       }
     } on FirebaseAuthException catch (e) {
-      _showMessage('Giriş başarısız: ${e.message}');
+      if (e.code == 'user-not-found') {
+        try {
+          final userQuery = await FirebaseFirestore.instance
+              .collection('Users')
+              .where('email', isEqualTo: inputEmail)
+              .limit(1)
+              .get();
+
+          if (userQuery.docs.isNotEmpty) {
+            final data = userQuery.docs.first.data();
+            final String? storedPassword = data['password'] as String?;
+            final String? role = data['role'] as String?;
+
+            if (storedPassword == inputPassword && (role == 'user' || role == 'admin')) {
+              await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                email: inputEmail,
+                password: inputPassword,
+              );
+              Navigator.pushReplacementNamed(context, '/home');
+              return;
+            }
+          }
+          _showMessage('Giriş başarısız: Bu email için kullanıcı kaydı bulunamadı veya şifre eşleşmiyor.');
+        } catch (ie) {
+          _showMessage('Hata: $ie');
+        }
+      } else if (e.code == 'wrong-password') {
+        _showMessage('Hatalı şifre girdiniz.');
+      } else if (e.code == 'invalid-email') {
+        _showMessage('Geçersiz email formatı.');
+      } else {
+        _showMessage('Giriş başarısız: ${e.message ?? 'Bilinmeyen bir hata oluştu.'}');
+      }
     } catch (e) {
       _showMessage('Hata: $e');
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 

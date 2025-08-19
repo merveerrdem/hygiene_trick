@@ -8,6 +8,7 @@ import 'home_screen.dart';
 import 'admin_home_screen.dart';
 import 'work_schedule_screen.dart';
 import 'admin_profile_screen.dart';
+import 'system_settings.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +33,16 @@ class MyApp extends StatelessWidget {
         '/admin_home_screen': (context) => AdminHomeScreen(),
         '/work_schedule': (context) => WorkScheduleScreen(),
         '/admin_profile': (context) => AdminProfileScreen(),
+        '/system_settings': (context) => SystemSettingsScreen(),
+      },
+      onUnknownRoute: (settings) {
+        return MaterialPageRoute(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: Text('Sayfa bulunamadı: ${settings.name}'),
+            ),
+          ),
+        );
       },
     );
   }
